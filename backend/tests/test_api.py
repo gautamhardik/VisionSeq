@@ -7,12 +7,14 @@ import os
 def main():
     print("Starting API server on port 8001...")
     # Inject environmental variables to the child process
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    project_root = os.path.dirname(backend_dir)
+    test_image_path = os.path.join(project_root, "test_images", "test-10.png")
     env = os.environ.copy()
     env["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-    env["PYTHONPATH"] = os.path.abspath("backend")
+    env["PYTHONPATH"] = backend_dir
     
-    python_executable = os.path.abspath("backend/venv/Scripts/python")
-    backend_dir = os.path.abspath("backend")
+    python_executable = sys.executable
     
     # Start server as a background process from the 'backend' directory
     proc = subprocess.Popen(
@@ -69,7 +71,7 @@ def main():
 
         # Test single prediction
         print("Testing predict...")
-        with open("test_images/test-10.png", "rb") as f:
+        with open(test_image_path, "rb") as f:
             resp = requests.post("http://127.0.0.1:8001/api/v1/predict", files={"file": ("test-10.png", f, "image/png")})
         assert resp.status_code == 200, f"Predict failed: {resp.status_code} {resp.text}"
         pred_res = resp.json()
@@ -88,7 +90,7 @@ def main():
 
         # Test validation error (invalid content-type)
         print("Testing predict with invalid MIME type...")
-        with open("test_images/test-10.png", "rb") as f:
+        with open(test_image_path, "rb") as f:
             resp = requests.post(
                 "http://127.0.0.1:8001/api/v1/predict",
                 files={"file": ("test-10.png", f, "text/plain")}
@@ -98,7 +100,7 @@ def main():
 
         # Test batch prediction limit (max 5)
         print("Testing batch predict limit...")
-        files_list = [("files", ("test-10.png", open("test_images/test-10.png", "rb"), "image/png")) for _ in range(6)]
+        files_list = [("files", ("test-10.png", open(test_image_path, "rb"), "image/png")) for _ in range(6)]
         resp = requests.post("http://127.0.0.1:8001/api/v1/predict/batch", files=files_list)
         assert resp.status_code == 413, f"Expected 413 Payload Too Large, got: {resp.status_code}"
         print("[PASS] Batch limit enforcement passed")
@@ -114,7 +116,7 @@ def main():
         print("Testing rate limiting...")
         triggered_429 = False
         for i in range(15):  # Limiter: rate=2.0, capacity=5.0. 15 requests will exceed it.
-            with open("test_images/test-10.png", "rb") as f:
+            with open(test_image_path, "rb") as f:
                 resp = requests.post(
                     "http://127.0.0.1:8001/api/v1/predict",
                     files={"file": ("test-10.png", f, "image/png")}
