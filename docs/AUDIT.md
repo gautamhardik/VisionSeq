@@ -1,92 +1,100 @@
 # Engineering Audit Report
 
-This document details the engineering audit of the VisionSeq OCR application. The audit assesses production-readiness, security vulnerability controls, model inference latency, and concurrency performance.
+An internal engineering review of VisionSeq, assessing production-readiness across architecture, security, inference latency, and concurrency handling. This audit was used to drive the hardening work documented in [HARDENING.md](HARDENING.md).
 
 ---
 
-## Positive Findings (Passed Architecture)
-The application architecture meets several senior-level architectural requirements:
-- **Model Singleton**: The model is loaded once upon application startup (`InferenceService.__init__`), preventing model-loading latency on the request path.
-- **Thread Safety**: The PyTorch model operates safely on a single GPU across concurrent incoming requests in `eval()` mode.
-- **Device Selection**: Dynamic fallback selection (`cuda` → `cpu`) handles execution environments seamlessly.
-- **Request Logging**: Structured logging (`loguru`) captures Request IDs, inference metrics, and prediction confidence scores.
-- **Fail-Fast Startup**: If weights are missing, the server crashes immediately on boot rather than starting in a broken state.
+## Scope
+
+The review covered:
+- Backend request-handling architecture (FastAPI)
+- Model serving pattern (PyTorch singleton service)
+- Input validation and file-upload handling
+- Concurrency behavior under load
+- Dependency and deployment configuration
+- Observability and health reporting
 
 ---
 
-## Discovered Vulnerabilities & Bugs
+## Positive Findings
 
-### BUG-001: Unbounded File Uploads (Denial of Service)
-- **Severity**: Critical
-- **Findings**: The endpoints lacked protection against memory exhaustion from oversized file payloads.
-- **Fix**: Implemented boundary middleware limiting `Content-Length` headers, and added chunk-based streaming limits.
+| Area | Finding |
+|---|---|
+| **Model Singleton** | Model is loaded once at startup (`InferenceService.__init__`), eliminating load latency from the request path |
+| **Thread Safety** | The model runs safely in `eval()` mode across concurrent requests on a single GPU |
+| **Device Selection** | Automatic `cuda` → `cpu` fallback handles heterogeneous deployment environments without config changes |
+| **Request Logging** | Structured logging (`loguru`) captures request IDs, inference latency, and prediction confidence |
+| **Fail-Fast Startup** | Missing model weights crash the server at boot rather than allowing it to serve broken predictions |
 
-### BUG-002: Blocking I/O in Async Handlers
-- **Severity**: Critical
-- **Findings**: CPU-heavy preprocessing and PyTorch forward passes were executed synchronously in the FastAPI event loop, blocking concurrent request parsing.
-- **Fix**: Offloaded both preprocessing and forward passes to background worker threads using `run_in_threadpool()`.
+---
 
-### BUG-003: Insecure MIME Type Validation
-- **Severity**: High
-- **Findings**: Checked only filename/content-type strings, which allowed uploading malicious scripts masquerading as images.
-- **Fix**: Enforced physical check of binary structures using `PIL.Image.verify()` and safely map validation exceptions to `HTTP 400`.
+## Findings & Remediations
 
-### BUG-004: Unpinned Dependencies
-- **Severity**: Medium
-- **Findings**: Packages used loose boundaries (`torch>=2.0.0`), leading to unpredictable future server builds.
-- **Fix**: Pinned all package versions in requirements files and generated lock files.
+### BUG-001 — Unbounded File Uploads (Denial of Service)
+**Severity:** Critical
+**Finding:** Endpoints had no protection against memory exhaustion from oversized payloads.
+**Remediation:** Boundary middleware enforcing `Content-Length` limits, plus chunk-based streaming caps as a fallback for missing/spoofed headers.
 
-### BUG-005: Missing Model Warmup
-- **Severity**: Low
-- **Findings**: The first user request paid the cold start penalty for CUDA initialization.
-- **Fix**: Implemented dummy tensor execution during service startup.
+### BUG-002 — Blocking I/O in Async Handlers
+**Severity:** Critical
+**Finding:** CPU-bound preprocessing and PyTorch forward passes executed synchronously on the FastAPI event loop, blocking concurrent request handling.
+**Remediation:** Offloaded both stages to background threads via `run_in_threadpool()`.
 
-### BUG-006: Hardcoded Image Specs
-- **Severity**: Low
-- **Findings**: Model input dimensions and vocabulary size were hardcoded in endpoints.
-- **Fix**: Linked metadata endpoints dynamically to settings configuration.
+### BUG-003 — Insecure MIME Type Validation
+**Severity:** High
+**Finding:** Validation relied on filename/content-type strings alone, allowing disguised malicious payloads to pass as images.
+**Remediation:** Enforced physical structural validation via `PIL.Image.verify()`, mapping failures to `400 Bad Request`.
 
-### BUG-007: Shallow Health Checks
-- **Severity**: Low
-- **Findings**: Health checks returned static status regardless of model or hardware availability.
-- **Fix**: Updated endpoints to verify model readiness and GPU state, returning `HTTP 503` if unhealthy.
+### BUG-004 — Unpinned Dependencies
+**Severity:** Medium
+**Finding:** Loose version bounds (e.g. `torch>=2.0.0`) risked unreproducible builds over time.
+**Remediation:** All packages pinned; lock files generated.
 
-### BUG-008: Missing Rate Limiting
-- **Severity**: Low
-- **Findings**: Lack of request throttling made endpoints vulnerable to GPU exhaustion.
-- **Fix**: Implemented a lightweight, custom token-bucket rate limiter dependency.
+### BUG-005 — Missing Model Warmup
+**Severity:** Low
+**Finding:** First request paid the full CUDA cold-start penalty.
+**Remediation:** Dummy-tensor inference executed at startup.
+
+### BUG-006 — Hardcoded Image Specs
+**Severity:** Low
+**Finding:** Input dimensions and vocabulary size were hardcoded in endpoint logic.
+**Remediation:** Centralized into `config.py`, referenced dynamically.
+
+### BUG-007 — Shallow Health Checks
+**Severity:** Low
+**Finding:** Health endpoint returned static status regardless of actual model/hardware state.
+**Remediation:** Health checks now verify model readiness and GPU availability, returning `503` when unhealthy.
+
+### BUG-008 — Missing Rate Limiting
+**Severity:** Low
+**Finding:** No throttling exposed the GPU/CPU to resource-exhaustion abuse.
+**Remediation:** Lightweight in-memory token-bucket limiter added as a route dependency.
 
 ---
 
 ## Production Readiness Summary
 
 | Category | Status |
-| :--- | :--- |
-| **Architecture** | **✅ Production Ready** |
-| **ML Pipeline** | **✅ Production Ready** |
-| **Frontend** | **✅ Production Ready** |
-| **Backend Structure** | **✅ Production Ready** |
-| **Security Hardening** | **⚠ Recommended** |
-| **Scalability** | **⚠ Recommended** |
-| **Deployment Configuration** | **⚠ Recommended** |
-| **Operational Observability** | **⚠ Minor Improvements** |
-
-**Overall Production Readiness Score: 9.2 / 10**
+|---|---|
+| Architecture | ✅ Production Ready |
+| ML Pipeline | ✅ Production Ready |
+| Frontend | ✅ Production Ready |
+| Backend Structure | ✅ Production Ready |
+| Security Hardening | ✅ Addressed (see below) |
+| Scalability | ⚠ Single-instance; horizontal scaling not yet implemented |
+| Deployment Configuration | ⚠ CORS defaults to `*`; tighten for public deployment |
+| Operational Observability | ⚠ In-memory metrics only; no external metrics/log aggregation |
 
 ---
 
-## Senior Engineering Assessment
+## Assessment
 
-> **Approved with minor comments.**
->
-> The project demonstrates a strong understanding of modern ML application architecture. The remaining findings are primarily related to production hardening—security controls, concurrency, dependency management, and deployment practices—rather than architectural deficiencies. Once these items are addressed, the project would represent a production-oriented, full-stack ML application suitable for technical interviews, portfolio presentation, and public deployment.
+The architecture demonstrates a solid grasp of production ML-serving patterns: singleton model lifecycle, async-safe request handling, defensive input validation, and observable health state. All eight findings from the initial review (BUG-001 through BUG-008) have corresponding remediations implemented and documented in [HARDENING.md](HARDENING.md).
 
----
+Remaining considerations before a genuinely public, multi-tenant deployment: the in-memory rate limiter and request counters won't survive a multi-instance deployment (would need a shared store like Redis), and CORS/observability configuration should be tightened per environment rather than left at permissive defaults. These are standard "scale-out" concerns rather than architectural flaws in the current single-instance design.
 
-## Portfolio Readiness
+## Related Documentation
 
-- **Resume:** ✅ Ready
-- **Recruiter Demo:** ✅ Ready
-- **Production Architecture:** ✅ Yes
-- **Code Review:** ⚠ Requires hardening
-- **Public Deployment:** ⚠ Requires operational hardening
+- [Hardening Notes](HARDENING.md) — implementation detail behind each remediation above
+- [Architecture](ARCHITECTURE.md) — the design this audit evaluated
+- [Deployment Guide](DEPLOYMENT.md) — production configuration guidance, including CORS

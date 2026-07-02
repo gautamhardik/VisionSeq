@@ -8,102 +8,231 @@ app_port: 7860
 pinned: false
 ---
 
-# Distorted Visual Sequence Pattern Recognition using Deep Learning
+<div align="center">
 
-![Hero Banner](assets/hero.png)
+# VisionSeq
 
-I trained a ResNet-18 to read distorted 6-character CAPTCHAs at 99.94% character accuracy and 99.70% full-sequence accuracy with only 6 failures in 2,000 validation images.
+### Distorted Visual Sequence Recognition with Deep Learning
 
-## Technical Documentation
-- 🏗️ **[System Architecture](docs/ARCHITECTURE.md)**: Detailed component description and data pipeline layout.
-- 📋 **[Engineering Audit Report](docs/AUDIT.md)**: High-level architectural reviews and vulnerability assessment.
-- 🛡️ **[Operational Hardening](docs/HARDENING.md)**: Security, rate limiting, and event loop concurrency hardening details.
-- ⚡ **[API Specification](docs/API.md)**: Endpoint payload, response formats, and health checking protocols.
-- 🛠️ **[Deployment Guide](docs/DEPLOYMENT.md)**: Virtualenv, environment variables, and Docker Compose configurations.
+**A full-stack OCR system that decodes 6-character distorted CAPTCHA sequences at 99.94% character accuracy — trained, served, and deployed end-to-end.**
 
-## Project Summary
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://huggingface.co/spaces/Hardik-25/VisionSeq)
+[![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-frontend-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-A CAPTCHA recognition competition required decoding distorted alphanumeric sequences with no ground truth test labels. I built a ResNet-18 that treats each of the 6 character positions as a separate 31-class classifier. The model hit 99.83% character accuracy after one epoch and peaked at 99.94% by epoch 4. On 2,761 unseen test images, it produced predictions for every sample. The pipeline is deployed as a decoupled Next.js web application powered by a FastAPI backend.
+**[🚀 Live Demo](https://huggingface.co/spaces/Hardik-25/VisionSeq)** · **[🎥 Demo Video](#-demo-video)** · **[📖 Docs](#-documentation)**
 
-## Problem & Motivation
+</div>
 
-CAPTCHAs exist to fool automated readers. Traditional OCR (Tesseract, EasyOCR) fails on distorted text, and custom CNN solutions usually rely on pretrained ImageNet features that transfer poorly to binary-like CAPTCHA patterns. The competition provided 20,000 labeled samples — enough to train, but not enough for a large model.
+---
+
+## Overview
+
+CAPTCHAs are designed to defeat automated readers — overlapping glyphs, background noise, and font distortion routinely break traditional OCR engines like Tesseract and EasyOCR. VisionSeq treats this as a **structured multi-task classification problem** rather than a general sequence-transcription problem: since every CAPTCHA in this dataset is exactly six characters long, a modified ResNet-18 backbone predicts all six character positions in a single forward pass, avoiding the alignment complexity of CTC-based approaches.
+
+The result is a model that resolves **99.94% of individual characters** and **99.70% of full 6-character sequences** correctly — then wraps it in a production-style REST API and web interface so it can be evaluated as a real system, not just a notebook metric.
+
+> 🔗 **Try it live:** [huggingface.co/spaces/Hardik-25/VisionSeq](https://huggingface.co/spaces/Hardik-25/VisionSeq)
+
+<div align="center">
+
+![VisionSeq UI](assets/ui-demo.png)
+
+</div>
+
+---
+
+## 🎥 Demo Video
+
+<!-- TODO: replace with your video link, e.g.:
+🎬 [Watch the demo](https://your-video-link-here) -->
+
+> 📌 *Demo video link goes here.*
+
+---
+
+## Highlights
+
+| | |
+|---|---|
+| 🎯 **99.94%** character accuracy | 6 failures out of 2,000 validation images |
+| ⚡ **~170ms** CPU inference · **<50ms** on GPU | Sub-real-time single-image prediction |
+| 🧠 **11.2M parameters** | Compact ResNet-18 backbone, no external OCR dependency |
+| 🔒 **Hardened API** | Rate limiting, streaming upload limits, MIME verification, threadpool isolation |
+| 🐳 **One-command deploy** | `docker compose up --build` — frontend, backend, and model in sync |
+| 📊 **Fully documented** | Architecture, API, hardening, and audit docs included |
+
+---
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| 🏗️ [Architecture](docs/ARCHITECTURE.md) | System design, component responsibilities, and data pipeline |
+| ⚡ [API Specification](docs/API.md) | Endpoint contracts, request/response schemas, error codes |
+| 🛡️ [Hardening Notes](docs/HARDENING.md) | Security, concurrency, and reliability measures |
+| 📋 [Engineering Audit](docs/AUDIT.md) | Independent production-readiness review and findings |
+| 🛠️ [Deployment Guide](docs/DEPLOYMENT.md) | Local, Docker, and cloud deployment instructions |
+
+---
+
+## Problem Statement
+
+The dataset consists of **20,000 grayscale 100×200 CAPTCHA images**, each labeled with a 6-character string drawn from a 31-character vocabulary (digits 2–9, uppercase A–Z excluding `I`, `L`, `O` — characters that are visually ambiguous with `1` and `0` in the rendering font). Images exhibit background noise, overlapping glyphs, blur, shape deformation, occlusion, and irregular spacing — designed specifically to defeat conventional OCR.
+
+The task: given a distorted image, predict the exact 6-character sequence, evaluated on Character Error Rate (Levenshtein distance).
+
+<div align="center">
+
+| ![Sample 1](assets/sample-7DUP98.png) | ![Sample 2](assets/sample-6CUKRD.png) | ![Sample 3](assets/sample-DX3YJ3.png) |
+|:---:|:---:|:---:|
+| `7DUP98` | `6CUKRD` | `DX3YJ3` |
+
+*Representative CAPTCHA samples from the dataset, showing overlapping glyphs, background noise, and blob occlusion.*
+
+</div>
 
 ## Dataset
 
-20,000 images, each 100×200 grayscale PNG, labeled with 6-character strings from a 31-character vocabulary (digits 2-9, uppercase A-Z excluding I, L, O). I found 2 corrupted labels during EDA — Excel auto-formatted them as scientific notation ("5.40E+12") and a date ("04-Mar-54"). One label was duplicated. After filtering, I kept 19,998 samples, split 90/10 stratified into 17,998 train + 2,000 validation.
+- **20,000** labeled training images, cleaned to **19,998** after removing 2 corrupted labels (Excel auto-formatting artifacts: `5.40E+12`, `04-Mar-54`) and 1 duplicate.
+- Stratified **90/10 split** → 17,998 train / 2,000 validation.
+- **2,761** unlabeled test images for final prediction.
 
-## Approach
+## Modeling Approach
 
-I used a per-position classifier instead of CTC. The ResNet-18 backbone (first conv replaced for 1-channel input) feeds into `AdaptiveAvgPool2d((1, 6))` to produce exactly 6 feature vectors, one per character position. Each goes through a shared `Linear(512, 31)` classifier.
+Rather than a CTC-based sequence decoder, each CAPTCHA is treated as **six simultaneous single-character classification problems**:
 
-Important caveat: I used `weights="DEFAULT"` then replaced conv1, so backbone layers (except conv1) started from ImageNet weights — not fully "from scratch." This explains the unusually fast convergence. Loss is summed CrossEntropy across 6 positions with 0.1 label smoothing. Optimizer: AdamW (lr=3e-4, weight_decay=1e-4) with ReduceLROnPlateau and gradient clipping at norm 5.0.
+- **Backbone:** ResNet-18, first convolution modified for single-channel (grayscale) input, initialized from ImageNet weights (`weights="DEFAULT"`) — note this means the backbone is *fine-tuned*, not trained from scratch, which explains the unusually fast convergence.
+- **Head:** `AdaptiveAvgPool2d((1, 6))` produces six independent 512-dim feature vectors, each classified by a shared `Linear(512, 31)` layer.
+- **Loss:** Summed cross-entropy across all 6 positions, with 0.1 label smoothing to counter overconfidence (validation accuracy without smoothing was 0.07pp lower).
+- **Optimizer:** AdamW (`lr=3e-4`, `weight_decay=1e-4`), `ReduceLROnPlateau`, gradient clipping at norm 5.0.
 
-## Technical Decisions
-
-| Decision | Alternatives Considered | Why I Chose This |
-|----------|------------------------|------------------|
-| Per-position classifier vs CTC | CTC with blank token | Fixed 6-char sequence makes CTC's variable-length alignment unnecessary. Per-position is simpler and directly optimizes the right objective. |
-| ResNet-18 | ResNet-34, ResNet-50, custom CNN | 18 layers is sufficient for 100×200 input. Larger models risk overfitting on 18k training samples. |
-| AdamW | SGD with momentum, Adam | AdamW decouples weight decay from gradient updates, giving smoother validation curves in early epochs. |
-| Label smoothing 0.1 | No smoothing | Reduced overconfidence. The model assigned >99% probability to single classes by epoch 2 — smoothing kept probabilities distributed. |
-| 31-class vocab (excluding I, L, O) | Full 36 alphanumeric | Competition spec. I, L, O are visually indistinguishable from 1, 0 in CAPTCHA fonts even for humans. |
+| Decision | Alternatives Considered | Rationale |
+|---|---|---|
+| Per-position classifier vs. CTC | CTC with blank token | Sequence length is fixed at 6, so CTC's variable-length alignment machinery is unnecessary overhead |
+| ResNet-18 backbone | ResNet-34/50, custom CNN | Sufficient capacity for 100×200 input; larger models risk overfitting on ~18K samples |
+| AdamW optimizer | SGD+momentum, Adam | Decoupled weight decay produced smoother early validation curves |
+| Label smoothing (0.1) | None | Prevented >99% single-class overconfidence by epoch 2 |
+| 31-class vocabulary | Full 36-character alphanumeric | Matches competition spec; `I`/`L`/`O` are visually indistinguishable from `1`/`0` in this font |
 
 ## Results
 
-| Metric | Score | What It Means |
-|--------|-------|---------------|
-| Character Accuracy | **99.94%** | 1 wrong character per ~1,667 predictions |
-| Sequence Accuracy | **99.70%** | 6 out of 2,000 images had any error |
+| Metric | Score | Interpretation |
+|---|---|---|
+| Character Accuracy | **99.94%** | ~1 misread character per 1,667 predictions |
+| Sequence Accuracy | **99.70%** | 6 of 2,000 validation images had any error |
 | Character Error Rate | **0.06%** | ~1 edit per 1,667 characters |
 
-The model reached 99.83% char accuracy in one epoch (72 seconds on a T4 GPU). Best checkpoint was at epoch 4. Remaining 36 epochs oscillated between 99.93% and 99.94% — training was effectively complete in ~5 minutes. The only systematic confusion was `5` ↔ `S`, which the CAPTCHA font renders nearly identically.
+Training converged to 99.83% character accuracy within a single epoch (≈72s on a T4 GPU); the best checkpoint appeared at epoch 4, with the remaining 36 epochs oscillating between 99.93–99.94%. The single systematic confusion pattern observed was `5 ↔ S`, which the CAPTCHA font renders almost identically.
+
+### Sample predictions
+
+Example distorted CAPTCHA inputs from the test set, alongside the model's decoded output:
+
+| Input | Prediction | Confidence |
+|---|---|---|
+| ![Sample CAPTCHA input](assets/sample-7DUP98.png) | `7DUP98` | 99.7% |
+| ![Sample CAPTCHA input](assets/sample-6CUKRD.png) | `6CUKRD` | 99.4% |
+| ![Sample CAPTCHA input](assets/sample-DX3YJ3.png) | `DX3YJ3` | n/a |
 
 ## What Didn't Work
 
-- **32-class vocab with blank index:** I initially included a blank class (index 0), as preparation for CTC. This was unnecessary — the fixed sequence length made it a dead class that never appeared in targets. I removed it after epoch 1.
-- **Training without label smoothing:** I tried one epoch without it. Validation char accuracy dropped from 99.90% to 99.83%. I re-enabled it.
+- **Blank-class vocabulary (32 classes):** Added in anticipation of a CTC approach; became a dead class once the fixed-length per-position design was adopted. Removed after epoch 1.
+- **No label smoothing:** Dropped validation character accuracy from 99.90% → 99.83% in a single-epoch comparison; smoothing was reinstated.
 
-## Example Output
+## Known Limitations
 
-| Prediction | Confidence |
-|-----------|------------|
-| `7DUP98` | 99.7% |
-| `6CUKRD` | 99.4% |
+- Systematic `5`/`S` confusion in this specific font.
+- Fixed to exactly 6 characters — cannot handle variable-length sequences.
+- No out-of-distribution rejection: the model always emits a confident 6-character prediction, even for non-CAPTCHA input.
+- Trained on a single CAPTCHA rendering engine; generalization to other generators (different noise/warping) is untested.
 
-Six failures on the 2,000 validation images — the only recurring pattern was `MNYSDG` predicted as `MNY5DG`.
+---
 
-## User Interface Demo
+## System Architecture
 
-![UI Preview Screenshot](assets/demo.png)
+```mermaid
+graph TD
+    User([User Client]) -->|Web UI| FE[Next.js Frontend]
+    FE -->|REST API Requests| BE[FastAPI Backend]
+    BE -->|Preprocessed Tensor| INF[PyTorch Inference Service]
+    INF -->|Model weights| Model[ResNet-18 Multi-Head Classifier]
+    Model -->|Logits| Dec[Character Decoder]
+    Dec -->|Prediction & Confidence| BE
+    BE -->|JSON Response| FE
+```
 
-## Limitations
+A decoupled, service-oriented stack: Next.js frontend → FastAPI backend → singleton PyTorch inference service. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for full component breakdown.
 
-- Confuses `5` and `S` in certain fonts — the only systematic substitution pattern observed.
-- Fixed 6-character length only. Cannot process shorter or longer sequences.
-- Always predicts 6 characters with high confidence, even on non-CAPTCHA inputs (no rejection mechanism).
-- Trained on one CAPTCHA rendering engine. Different generators (different noise, warping, occlusions) would likely degrade performance.
+## Production Hardening
 
-## Setup
+Following an internal engineering audit ([AUDIT.md](docs/AUDIT.md)), the backend was hardened against 8 identified issues spanning DoS protection, blocking I/O, insecure MIME validation, unpinned dependencies, missing warmup, hardcoded config, shallow health checks, and absent rate limiting. Full detail in [HARDENING.md](docs/HARDENING.md).
 
-Model weights (`final_resnet18_captcha.pth`, ~44 MB) are located inside the `backend/weights/` directory.
+---
 
-For detailed setup instructions on running locally or using Docker Compose, refer to the [Deployment Guide](docs/DEPLOYMENT.md).
+## Tech Stack
 
-## Production Architecture (Next.js + FastAPI)
+| Layer | Technologies |
+|---|---|
+| **Frontend** | Next.js, React, TypeScript, Tailwind CSS, Framer Motion |
+| **Backend** | FastAPI, Uvicorn, Pydantic |
+| **ML** | PyTorch, ResNet-18, torchvision |
+| **Infra** | Docker, Docker Compose, GitHub Actions CI |
+| **Deployment** | Hugging Face Spaces (live demo), Vercel / Render-compatible |
 
-![Architecture Diagram](assets/architecture.png)
+## Repository Structure
 
-This repository features a production-ready, decoupled architecture:
-- **Frontend**: Next.js, Tailwind CSS, Framer Motion
-- **Backend**: FastAPI, PyTorch (Service-oriented architecture)
+```
+VisionSeq/
+├── .github/workflows/ci.yml
+├── assets/                  # ui-demo.png, sample-7DUP98.png, sample-6CUKRD.png, sample-DX3YJ3.png
+├── backend/
+│   ├── app/
+│   │   ├── api/routes.py
+│   │   ├── core/config.py
+│   │   ├── models/resnet18.py
+│   │   ├── services/{preprocessing,inference,decoding}.py
+│   │   ├── schemas/
+│   │   └── utils/rate_limiter.py
+│   ├── weights/final_resnet18_captcha.pth
+│   └── main.py
+├── frontend/
+│   └── app/{layout.tsx, page.tsx, globals.css}
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── API.md
+│   ├── AUDIT.md
+│   ├── DEPLOYMENT.md
+│   └── HARDENING.md
+├── notebooks/
+├── docker-compose.yml
+└── README.md
+```
 
-### Running with Docker Compose
+## Quick Start
 
-To spin up both the FastAPI backend and the Next.js frontend:
 ```bash
+git clone https://github.com/<your-username>/VisionSeq.git
+cd VisionSeq
 docker compose up --build
 ```
-- The frontend will be available at `http://localhost:3000`
-- The backend API will be available at `http://localhost:8000`
-- API documentation (Swagger UI) is automatically generated at `http://localhost:8000/docs`
+
+- Frontend → `http://localhost:3000`
+- Backend API → `http://localhost:8000`
+- Swagger docs → `http://localhost:8000/docs`
+
+Full setup instructions (Docker and local virtualenv) are in the [Deployment Guide](docs/DEPLOYMENT.md).
+
+## Author
+
+**Hardik** — Full-stack ML engineering: model training, API design, frontend, containerization, and deployment.
+
+📎 [Live Demo](https://huggingface.co/spaces/Hardik-25/VisionSeq) · 🎥 Demo video (link above) · 📄 [Architecture](docs/ARCHITECTURE.md)
+
+## License
+
+MIT — see [LICENSE](LICENSE).

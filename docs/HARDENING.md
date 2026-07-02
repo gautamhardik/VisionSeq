@@ -1,18 +1,19 @@
 # Operational Hardening
 
-This document explains the security, reliability, and performance hardening measures applied to the FastAPI backend.
+Security, reliability, and performance measures applied to the FastAPI backend, following the findings in [AUDIT.md](AUDIT.md).
 
 ---
 
-## 1. Denial of Service (DoS) Protections
+## 1. Denial-of-Service Protection
 
-To protect the server from memory exhaustion (Out of Memory crashes) and resource starvation, two defense layers were implemented:
+Two layers guard against memory exhaustion from oversized or malicious payloads:
 
-### Layer A: boundary Content-Length Check (Middleware)
-A custom HTTP middleware in `main.py` intercepts incoming requests at the server boundary. If a `POST` request contains a `Content-Length` header exceeding the maximum allowed size (5MB for `/predict`, 25MB for `/predict/batch`), the request is rejected immediately with an `HTTP 413 Payload Too Large` status before the body is streamed or parsed.
+**Layer A — Boundary `Content-Length` check (middleware).**
+A custom HTTP middleware in `main.py` inspects incoming `POST` requests before the body is read. If `Content-Length` exceeds the configured limit (5MB for `/predict`, 25MB for `/predict/batch`), the request is rejected immediately with `413 Payload Too Large`.
 
-### Layer B: Defensive Chunked Streaming Check (Endpoint Level)
-If a client omits the `Content-Length` header or sends a spoofed headers value, the endpoint employs a defensive streaming loop to consume files:
+**Layer B — Defensive streaming check (endpoint level).**
+If a client omits `Content-Length` or sends a spoofed value, the endpoint reads the file in bounded chunks and aborts once the cumulative size crosses the limit:
+
 ```python
 contents = b""
 chunk_size = 64 * 1024  # 64KB chunks
@@ -26,41 +27,51 @@ while True:
         raise HTTPException(status_code=413, detail="File size exceeds limit")
     contents += chunk
 ```
-This forces immediate termination of connection if the streaming payload grows larger than 5MB, preventing DoS via slow HTTP post attacks or infinite byte streams.
+
+This closes the gap that header-only checks leave open — slow-post attacks and unbounded streams are terminated mid-transfer rather than after full buffering.
 
 ---
 
-## 2. Event Loop Isolation (Concurrency)
+## 2. Event Loop Isolation
 
-FastAPI runs async endpoints on a single-threaded event loop. If synchronous, CPU-bound tasks are run on this loop, it blocks all concurrent request parsing:
+FastAPI's async endpoints run on a single-threaded event loop; synchronous CPU-bound work on that loop blocks *all* concurrent request handling, not just the request performing the work.
 
-- **Fix**: Both the image decoding/resizing logic (`preprocess_image()`) and PyTorch tensor forward evaluation are executed sequentially inside a helper function (`_process()`) which is passed to FastAPI's `run_in_threadpool()`.
-- **Outcome**: The event loop offloads computations to background worker threads, allowing the server to handle concurrent request I/O and process multiple image uploads in parallel.
+**Fix:** both image preprocessing (`preprocess_image()`) and the PyTorch forward pass are wrapped in a helper (`_process()`) dispatched via `run_in_threadpool()`.
+
+**Effect:** the event loop stays free to accept and parse new connections while inference happens on background worker threads — the server handles concurrent uploads instead of serializing them behind whichever request is currently on the GPU/CPU.
 
 ---
 
 ## 3. Input Validation & MIME Security
 
-Relying purely on the `content_type` field reported by client uploads is insecure because filename extensions can be spoofed:
+Trusting client-reported `content_type` is insecure — filenames and MIME headers are trivially spoofable.
 
-- **Fix**: The image buffer is loaded and verified using `PIL.Image.verify()`. This reads the image headers to confirm that the file is physically structured as a valid image and not an executable script, zip bomb, or corrupted payload.
-- **Exception Mapping**: Any validation failure throws a `ValueError` inside the preprocessing pipeline, which is trapped by routes and converted to an `HTTP 400 Bad Request` log and client response.
+**Fix:** every uploaded buffer is validated with `PIL.Image.verify()`, which parses the actual image headers to confirm the file is structurally a valid image rather than an executable, archive, or corrupted payload.
+
+**Exception mapping:** validation failures raise a `ValueError` inside the preprocessing pipeline, caught at the route level and converted to a logged `400 Bad Request` — never surfaced as an unhandled `500`.
 
 ---
 
 ## 4. Rate Limiting
 
-To prevent API starvation and protect GPU processing resources, an in-memory token-bucket rate limiter was integrated:
+An in-memory token-bucket limiter protects prediction endpoints from GPU/CPU exhaustion:
 
-- **Algorithm**: Tracks tokens per IP address. It replenishes tokens at a configured rate (e.g. 2 requests per second) up to a maximum burst capacity (5 requests).
-- **Implementation**: The custom `rate_limit` dependency raises an `HTTP 429 Too Many Requests` status if the client's token bucket is depleted.
+- **Algorithm:** per-IP token bucket, replenished at a fixed rate (2 requests/sec) up to a burst cap of 5.
+- **Enforcement:** implemented as a FastAPI dependency (`rate_limit`), raising `429 Too Many Requests` once a client's bucket is depleted.
+- **Known limitation:** state is process-local — a multi-instance deployment needs a shared backing store (e.g. Redis) for the limiter to be effective across replicas. Flagged in [AUDIT.md](AUDIT.md).
 
 ---
 
-## 5. Active Telemetry & Observability
+## 5. Observability
 
-Observability was hardened to support health monitoring and auditing in cloud environments (e.g., Kubernetes liveness/readiness probes):
+Hardened to support health monitoring and auditing in cloud environments (e.g. Kubernetes liveness/readiness probes):
 
-- **Health Metrics**: The `/health` endpoint actively checks if the model instance is loaded and verifies GPU availability.
-- **Service Stats**: Exposes active metrics like model version, `uptime`, and `requests_served` globally.
-- **Structured Request Logging**: Requests log HTTP statuses, total request processing latencies (including file streaming), raw model inference times, and predictions/errors.
+- **Health metrics:** `/health` actively checks model readiness and GPU availability rather than returning a static `200`.
+- **Service stats:** exposes model version, process uptime, and cumulative requests served.
+- **Structured logging:** every request logs HTTP status, end-to-end latency (including upload streaming), raw inference time, and the resulting prediction or error — tagged with a request ID for tracing.
+
+## Related Documentation
+
+- [Engineering Audit](AUDIT.md) — the review that identified each issue addressed here
+- [Architecture](ARCHITECTURE.md) — where these measures sit in the request lifecycle
+- [API Specification](API.md) — the error codes these protections surface to clients
