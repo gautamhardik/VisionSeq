@@ -1,1 +1,58 @@
-*.pth
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+backend/venv/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!**/.env.example
+backend/.env
+
+# Model weights
+# Ignore training checkpoints and experimental weights
+best_*.pth
+checkpoint*.pth
+captcha_checkpoint.pth
+
+# Keep general pth files out, but explicitly track the production weights file
+backend/weights/*.pth
+!backend/weights/final_resnet18_captcha.pth
+
+# Logs
+*.log
+
+# =========================
+# Next.js
+# =========================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.bak
+*.swp
