@@ -6,7 +6,7 @@ COPY frontend/ ./
 ENV NEXT_PUBLIC_API_URL=/api/v1
 RUN npm run build
 
-FROM python:3.11-slim
+FROM python:3.12-slim
 WORKDIR /app
 
 # Install system dependencies (OpenCV requirements)
