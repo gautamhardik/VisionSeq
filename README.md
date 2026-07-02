@@ -48,10 +48,9 @@ The result is a model that resolves **99.94% of individual characters** and **99
 
 ## 🎥 Demo Video
 
-<!-- TODO: replace with your video link, e.g.:
-🎬 [Watch the demo](https://your-video-link-here) -->
+<video src="https://github.com/gautamhardik/VisionSeq/raw/master/Demo.mp4" controls="controls" muted="muted" style="max-width: 100%; max-height: 640px;"></video>
 
-> 📌 *Demo video link goes here.*
+*(Alternatively, you can [view the demo video directly](Demo.mp4))*
 
 ---
 
@@ -88,9 +87,9 @@ The task: given a distorted image, predict the exact 6-character sequence, evalu
 
 <div align="center">
 
-| ![Sample 1](assets/sample-7DUP98.png) | ![Sample 2](assets/sample-6CUKRD.png) | ![Sample 3](assets/sample-DX3YJ3.png) |
-|:---:|:---:|:---:|
-| `7DUP98` | `6CUKRD` | `DX3YJ3` |
+| ![Sample 1](assets/sample-7DUP98.png) | ![Sample 2](assets/sample-6CUKRD.png) |
+|:---:|:---:|
+| `7DUP98` | `6CUKRD` |
 
 *Representative CAPTCHA samples from the dataset, showing overlapping glyphs, background noise, and blob occlusion.*
 
@@ -137,7 +136,6 @@ Example distorted CAPTCHA inputs from the test set, alongside the model's decode
 |---|---|---|
 | ![Sample CAPTCHA input](assets/sample-7DUP98.png) | `7DUP98` | 99.7% |
 | ![Sample CAPTCHA input](assets/sample-6CUKRD.png) | `6CUKRD` | 99.4% |
-| ![Sample CAPTCHA input](assets/sample-DX3YJ3.png) | `DX3YJ3` | n/a |
 
 ## What Didn't Work
 
@@ -224,6 +222,8 @@ docker compose up --build
 - Frontend → `http://localhost:3000`
 - Backend API → `http://localhost:8000`
 - Swagger docs → `http://localhost:8000/docs`
+
+> 💡 **Testing the App:** You can find sample CAPTCHA images to upload and test the application in the `test_images/` directory of this repository.
 
 Full setup instructions (Docker and local virtualenv) are in the [Deployment Guide](docs/DEPLOYMENT.md).
 
