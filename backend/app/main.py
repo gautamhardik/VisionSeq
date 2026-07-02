@@ -10,7 +10,7 @@ app = FastAPI(
     version=settings.VERSION,
     contact={
         "name": "AI Engineer",
-        "url": "https://github.com/hardikgautam/captcha-ocr",
+        "url": "https://github.com/gautamhardik/VisionSeq",
     },
 )
 
