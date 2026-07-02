@@ -87,9 +87,9 @@ The task: given a distorted image, predict the exact 6-character sequence, evalu
 
 <div align="center">
 
-| ![Sample 1](assets/sample-7DUP98.png) | ![Sample 2](assets/sample-6CUKRD.png) |
-|:---:|:---:|
-| `7DUP98` | `6CUKRD` |
+| ![Sample 1](assets/sample-7DUP98.png) | ![Sample 2](assets/sample-6CUKRD.png) | ![Sample 3](assets/sample-DX3YJ3.png) |
+|:---:|:---:|:---:|
+| `7DUP98` | `6CUKRD` | `DX3YJ3` |
 
 *Representative CAPTCHA samples from the dataset, showing overlapping glyphs, background noise, and blob occlusion.*
 
@@ -136,6 +136,7 @@ Example distorted CAPTCHA inputs from the test set, alongside the model's decode
 |---|---|---|
 | ![Sample CAPTCHA input](assets/sample-7DUP98.png) | `7DUP98` | 99.7% |
 | ![Sample CAPTCHA input](assets/sample-6CUKRD.png) | `6CUKRD` | 99.4% |
+| ![Sample CAPTCHA input](assets/sample-DX3YJ3.png) | `DX3YJ3` | n/a |
 
 ## What Didn't Work
 
@@ -229,7 +230,7 @@ Full setup instructions (Docker and local virtualenv) are in the [Deployment Gui
 
 ## Author
 
-**Hardik** — Full-stack ML engineering: model training, API design, frontend, containerization, and deployment.
+**Hardik**
 
 📎 [Live Demo](https://huggingface.co/spaces/Hardik-25/VisionSeq) · 🎥 Demo video (link above) · 📄 [Architecture](docs/ARCHITECTURE.md)
 
