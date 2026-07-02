@@ -1,3 +1,13 @@
+---
+title: VisionSeq
+emoji: 👁️
+colorFrom: indigo
+colorTo: violet
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Distorted Visual Sequence Pattern Recognition using Deep Learning
 
 ![Hero Banner](assets/hero.png)
