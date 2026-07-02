@@ -26,25 +26,6 @@ https://github.com/user-attachments/assets/e54e5ad4-2e3c-4c57-bd1d-facd730b8e7d
 
 ---
 
-## Screenshots
-
-<div align="center">
-
-**Hero UI**
-<br>
-![Hero UI](assets/hero.png)
-<br><br>
-
-**Prediction Result**
-<br>
-![Prediction Result](assets/ui-demo.png)
-<br><br>
-
-**Character Confidence Details**
-<br>
-![Character Confidence](assets/demo.png)
-
-</div>
 
 ## Overview
 
@@ -108,10 +89,6 @@ This project demonstrates:
 | 🛠️ [Deployment Guide](docs/DEPLOYMENT.md) | Local, Docker, and cloud deployment instructions |
 
 ---
-
-## System Architecture
-
-![Architecture](assets/architecture.png)
 
 ```mermaid
 graph TD
@@ -254,5 +231,5 @@ Full setup instructions (Docker and local virtualenv) are in the [Deployment Gui
 
 **Hardik Gautam**
 
-- **GitHub:** [https://github.com/gautamhardik](https://github.com/gautamhardik)
-- **LinkedIn:** [Insert LinkedIn Profile URL here](#)
+- **GitHub:** [CLICK HERE](https://github.com/gautamhardik)
+- **LinkedIn:** [CLICK HERE](www.linkedin.com/in/hardik-gautam-53646132a)
