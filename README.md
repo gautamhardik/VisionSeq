@@ -14,7 +14,7 @@ pinned: false
 
 ### Distorted Visual Sequence Recognition with Deep Learning
 
-**A full-stack OCR system that decodes 6-character distorted CAPTCHA sequences at 99.94% character accuracy — trained, served, and deployed end-to-end.**
+**A full-stack OCR system that decodes 6-character distorted CAPTCHA sequences at 99.94% character accuracy.**
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://huggingface.co/spaces/Hardik-25/VisionSeq)
 [![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/)
@@ -22,13 +22,27 @@ pinned: false
 [![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-frontend-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-**[🚀 Live Demo](https://huggingface.co/spaces/Hardik-25/VisionSeq)** · **[🎥 Demo Video](#-demo-video)** · **[📖 Docs](#-documentation)**
+**[🚀 Live Demo](https://huggingface.co/spaces/Hardik-25/VisionSeq)** · **[📖 Docs](docs)**
 
 </div>
 
 ---
+
+## 🎥 Watch the Demo
+
+https://github.com/user-attachments/assets/e54e5ad4-2e3c-4c57-bd1d-facd730b8e7d
+
+---
+
+## Screenshots
+
+<div align="center">
+
+**VisionSeq UI**
+![VisionSeq UI](assets/ui-demo.png)
+
+</div>
 
 ## Overview
 
@@ -36,19 +50,19 @@ CAPTCHAs are designed to defeat automated readers — overlapping glyphs, backgr
 
 The result is a model that resolves **99.94% of individual characters** and **99.70% of full 6-character sequences** correctly — then wraps it in a production-style REST API and web interface so it can be evaluated as a real system, not just a notebook metric.
 
+### Key Features
+* Production-ready FastAPI backend
+* Modern Next.js frontend
+* Batch inference
+* Docker support
+* API documentation
+* Health monitoring
+* Rate limiting
+* Upload validation
+* Model warmup
+* CPU/GPU support
+
 > 🔗 **Try it live:** [huggingface.co/spaces/Hardik-25/VisionSeq](https://huggingface.co/spaces/Hardik-25/VisionSeq)
-
-<div align="center">
-
-![VisionSeq UI](assets/ui-demo.png)
-
-</div>
-
----
-
-## 🎥 Demo Video
-
-https://github.com/gautamhardik/VisionSeq/raw/master/assets/Demo.mp4
 
 ---
 
@@ -56,7 +70,7 @@ https://github.com/gautamhardik/VisionSeq/raw/master/assets/Demo.mp4
 
 | | |
 |---|---|
-| 🎯 **99.94%** character accuracy | 6 failures out of 2,000 validation images |
+| 🎯 **99.94%** character accuracy | 99.70% exact sequence accuracy (6 incorrect predictions out of 2,000 validation images) |
 | ⚡ **~170ms** CPU inference · **<50ms** on GPU | Sub-real-time single-image prediction |
 | 🧠 **11.2M parameters** | Compact ResNet-18 backbone, no external OCR dependency |
 | 🔒 **Hardened API** | Rate limiting, streaming upload limits, MIME verification, threadpool isolation |
@@ -74,6 +88,23 @@ https://github.com/gautamhardik/VisionSeq/raw/master/assets/Demo.mp4
 | 🛡️ [Hardening Notes](docs/HARDENING.md) | Security, concurrency, and reliability measures |
 | 📋 [Engineering Audit](docs/AUDIT.md) | Independent production-readiness review and findings |
 | 🛠️ [Deployment Guide](docs/DEPLOYMENT.md) | Local, Docker, and cloud deployment instructions |
+
+---
+
+## System Architecture
+
+```mermaid
+graph TD
+    User([User Client]) -->|Web UI| FE[Next.js Frontend]
+    FE -->|REST API Requests| BE[FastAPI Backend]
+    BE -->|Preprocessed Tensor| INF[PyTorch Inference Service]
+    INF -->|Model weights| Model[ResNet-18 Multi-Head Classifier]
+    Model -->|Logits| Dec[Character Decoder]
+    Dec -->|Prediction & Confidence| BE
+    BE -->|JSON Response| FE
+```
+
+A decoupled, service-oriented stack: Next.js frontend → FastAPI backend → singleton PyTorch inference service. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for full component breakdown.
 
 ---
 
@@ -103,7 +134,8 @@ The task: given a distorted image, predict the exact 6-character sequence, evalu
 
 Rather than a CTC-based sequence decoder, each CAPTCHA is treated as **six simultaneous single-character classification problems**:
 
-- **Backbone:** ResNet-18, first convolution modified for single-channel (grayscale) input, initialized from ImageNet weights (`weights="DEFAULT"`) — note this means the backbone is *fine-tuned*, not trained from scratch, which explains the unusually fast convergence.
+Fine-tuned a modified ResNet-18 for fixed-length CAPTCHA recognition. 
+- **Backbone:** ResNet-18, first convolution modified for single-channel (grayscale) input, initialized from ImageNet weights (`weights="DEFAULT"`).
 - **Head:** `AdaptiveAvgPool2d((1, 6))` produces six independent 512-dim feature vectors, each classified by a shared `Linear(512, 31)` layer.
 - **Loss:** Summed cross-entropy across all 6 positions, with 0.1 label smoothing to counter overconfidence (validation accuracy without smoothing was 0.07pp lower).
 - **Optimizer:** AdamW (`lr=3e-4`, `weight_decay=1e-4`), `ReduceLROnPlateau`, gradient clipping at norm 5.0.
@@ -150,22 +182,7 @@ Example distorted CAPTCHA inputs from the test set, alongside the model's decode
 
 ---
 
-## System Architecture
-
-```mermaid
-graph TD
-    User([User Client]) -->|Web UI| FE[Next.js Frontend]
-    FE -->|REST API Requests| BE[FastAPI Backend]
-    BE -->|Preprocessed Tensor| INF[PyTorch Inference Service]
-    INF -->|Model weights| Model[ResNet-18 Multi-Head Classifier]
-    Model -->|Logits| Dec[Character Decoder]
-    Dec -->|Prediction & Confidence| BE
-    BE -->|JSON Response| FE
-```
-
-A decoupled, service-oriented stack: Next.js frontend → FastAPI backend → singleton PyTorch inference service. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for full component breakdown.
-
-## Production Hardening
+## Production Readiness
 
 Following an internal engineering audit ([AUDIT.md](docs/AUDIT.md)), the backend was hardened against 8 identified issues spanning DoS protection, blocking I/O, insecure MIME validation, unpinned dependencies, missing warmup, hardcoded config, shallow health checks, and absent rate limiting. Full detail in [HARDENING.md](docs/HARDENING.md).
 
@@ -183,28 +200,12 @@ Following an internal engineering audit ([AUDIT.md](docs/AUDIT.md)), the backend
 
 ## Repository Structure
 
-```
+```text
 VisionSeq/
-├── .github/workflows/ci.yml
-├── assets/                  # ui-demo.png, sample-7DUP98.png, sample-6CUKRD.png, sample-DX3YJ3.png
-├── backend/
-│   ├── app/
-│   │   ├── api/routes.py
-│   │   ├── core/config.py
-│   │   ├── models/resnet18.py
-│   │   ├── services/{preprocessing,inference,decoding}.py
-│   │   ├── schemas/
-│   │   └── utils/rate_limiter.py
-│   ├── weights/final_resnet18_captcha.pth
-│   └── main.py
 ├── frontend/
-│   └── app/{layout.tsx, page.tsx, globals.css}
+├── backend/
 ├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── API.md
-│   ├── AUDIT.md
-│   ├── DEPLOYMENT.md
-│   └── HARDENING.md
+├── assets/
 ├── notebooks/
 ├── docker-compose.yml
 └── README.md
@@ -213,14 +214,15 @@ VisionSeq/
 ## Quick Start
 
 ```bash
-git clone https://github.com/<your-username>/VisionSeq.git
+git clone https://github.com/gautamhardik/VisionSeq.git
 cd VisionSeq
 docker compose up --build
 ```
 
-- Frontend → `http://localhost:3000`
-- Backend API → `http://localhost:8000`
-- Swagger docs → `http://localhost:8000/docs`
+**Open:**
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+- Swagger: `http://localhost:8000/docs`
 
 > 💡 **Testing the App:** You can find sample CAPTCHA images to upload and test the application in the `test_images/` directory of this repository.
 
@@ -229,9 +231,3 @@ Full setup instructions (Docker and local virtualenv) are in the [Deployment Gui
 ## Author
 
 **Hardik**
-
-📎 [Live Demo](https://huggingface.co/spaces/Hardik-25/VisionSeq) · 🎥 Demo video (link above) · 📄 [Architecture](docs/ARCHITECTURE.md)
-
-## License
-
-MIT — see [LICENSE](LICENSE).
