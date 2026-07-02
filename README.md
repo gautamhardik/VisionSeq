@@ -155,6 +155,8 @@ The task: given a distorted image, predict the exact 6-character sequence, evalu
 
 ## Dataset
 
+> 🔗 **Download the Dataset:** [Google Drive Link](https://drive.google.com/drive/folders/1lRUA-1uCCXfks8kpypFV-4f0UepWoLkU?usp=sharing)
+
 - **20,000** labeled training images, cleaned to **19,998** after removing 2 corrupted labels (Excel auto-formatting artifacts: `5.40E+12`, `04-Mar-54`) and 1 duplicate.
 - Stratified **90/10 split** → 17,998 train / 2,000 validation.
 - **2,761** unlabeled test images for final prediction.
