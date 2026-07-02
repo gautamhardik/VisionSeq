@@ -49,10 +49,27 @@ app.add_middleware(
 
 app.include_router(router, prefix=settings.API_V1_STR)
 
-@app.get("/", summary="Root endpoint")
-async def root():
-    return {
-        "message": f"Welcome to {settings.PROJECT_NAME}",
-        "docs_url": "/docs",
-        "health_check": f"{settings.API_V1_STR}/health"
-    }
+# Mount frontend static files if they exist (local or docker paths)
+import os
+from fastapi.staticfiles import StaticFiles
+
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(backend_dir))
+frontend_out = os.path.join(project_root, "frontend", "out")
+docker_frontend_out = "/app/frontend/out"
+
+mounted_frontend = False
+for path in [frontend_out, docker_frontend_out]:
+    if os.path.exists(path):
+        app.mount("/", StaticFiles(directory=path, html=True), name="frontend")
+        mounted_frontend = True
+        break
+
+if not mounted_frontend:
+    @app.get("/", summary="Root endpoint")
+    async def root():
+        return {
+            "message": f"Welcome to {settings.PROJECT_NAME}",
+            "docs_url": "/docs",
+            "health_check": f"{settings.API_V1_STR}/health"
+        }
