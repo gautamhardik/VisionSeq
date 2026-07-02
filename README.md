@@ -23,7 +23,7 @@ pinned: false
 [![Next.js](https://img.shields.io/badge/Next.js-frontend-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
-**[🚀 Live Demo](https://huggingface.co/spaces/Hardik-25/VisionSeq)** · **[📖 Docs](docs)**
+**[🚀 Live Demo](https://huggingface.co/spaces/Hardik-25/VisionSeq)** · **[💻 GitHub](https://github.com/gautamhardik/VisionSeq)** · **[📖 Docs](docs)**
 
 </div>
 
@@ -39,8 +39,19 @@ https://github.com/user-attachments/assets/e54e5ad4-2e3c-4c57-bd1d-facd730b8e7d
 
 <div align="center">
 
-**VisionSeq UI**
-![VisionSeq UI](assets/ui-demo.png)
+**Hero UI**
+<br>
+![Hero UI](assets/hero.png)
+<br><br>
+
+**Prediction Result**
+<br>
+![Prediction Result](assets/ui-demo.png)
+<br><br>
+
+**Character Confidence Details**
+<br>
+![Character Confidence](assets/demo.png)
 
 </div>
 
@@ -63,6 +74,22 @@ The result is a model that resolves **99.94% of individual characters** and **99
 * CPU/GPU support
 
 > 🔗 **Try it live:** [huggingface.co/spaces/Hardik-25/VisionSeq](https://huggingface.co/spaces/Hardik-25/VisionSeq)
+
+---
+
+## Why This Project?
+
+This project demonstrates:
+
+- Deep Learning model development
+- Computer Vision
+- PyTorch
+- FastAPI backend engineering
+- Next.js frontend development
+- Docker containerization
+- Production API hardening
+- REST API design
+- End-to-end deployment
 
 ---
 
@@ -92,6 +119,8 @@ The result is a model that resolves **99.94% of individual characters** and **99
 ---
 
 ## System Architecture
+
+![Architecture](assets/architecture.png)
 
 ```mermaid
 graph TD
@@ -132,9 +161,8 @@ The task: given a distorted image, predict the exact 6-character sequence, evalu
 
 ## Modeling Approach
 
-Rather than a CTC-based sequence decoder, each CAPTCHA is treated as **six simultaneous single-character classification problems**:
+**Core idea:** Instead of using CTC decoding, VisionSeq treats CAPTCHA recognition as six simultaneous classification tasks by fine-tuning a modified ResNet-18 backbone.
 
-Fine-tuned a modified ResNet-18 for fixed-length CAPTCHA recognition. 
 - **Backbone:** ResNet-18, first convolution modified for single-channel (grayscale) input, initialized from ImageNet weights (`weights="DEFAULT"`).
 - **Head:** `AdaptiveAvgPool2d((1, 6))` produces six independent 512-dim feature vectors, each classified by a shared `Linear(512, 31)` layer.
 - **Loss:** Summed cross-entropy across all 6 positions, with 0.1 label smoothing to counter overconfidence (validation accuracy without smoothing was 0.07pp lower).
@@ -155,6 +183,7 @@ Fine-tuned a modified ResNet-18 for fixed-length CAPTCHA recognition.
 | Character Accuracy | **99.94%** | ~1 misread character per 1,667 predictions |
 | Sequence Accuracy | **99.70%** | 6 of 2,000 validation images had any error |
 | Character Error Rate | **0.06%** | ~1 edit per 1,667 characters |
+| Inference | **~170 ms CPU** / **<50 ms GPU** | Sub-real-time single-image prediction |
 
 Training converged to 99.83% character accuracy within a single epoch (≈72s on a T4 GPU); the best checkpoint appeared at epoch 4, with the remaining 36 epochs oscillating between 99.93–99.94%. The single systematic confusion pattern observed was `5 ↔ S`, which the CAPTCHA font renders almost identically.
 
@@ -182,7 +211,7 @@ Example distorted CAPTCHA inputs from the test set, alongside the model's decode
 
 ---
 
-## Production Readiness
+## Production Hardening
 
 Following an internal engineering audit ([AUDIT.md](docs/AUDIT.md)), the backend was hardened against 8 identified issues spanning DoS protection, blocking I/O, insecure MIME validation, unpinned dependencies, missing warmup, hardcoded config, shallow health checks, and absent rate limiting. Full detail in [HARDENING.md](docs/HARDENING.md).
 
@@ -230,4 +259,7 @@ Full setup instructions (Docker and local virtualenv) are in the [Deployment Gui
 
 ## Author
 
-**Hardik**
+**Hardik Gautam**
+
+- **GitHub:** [https://github.com/gautamhardik](https://github.com/gautamhardik)
+- **LinkedIn:** [Insert LinkedIn Profile URL here](#)
