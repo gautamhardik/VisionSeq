@@ -48,9 +48,7 @@ The result is a model that resolves **99.94% of individual characters** and **99
 
 ## 🎥 Demo Video
 
-<video src="https://github.com/gautamhardik/VisionSeq/raw/master/Demo.mp4" controls="controls" muted="muted" style="max-width: 100%; max-height: 640px;"></video>
-
-*(Alternatively, you can [view the demo video directly](Demo.mp4))*
+<video src="https://github.com/gautamhardik/VisionSeq/raw/master/assets/Demo.mp4" controls="controls" muted="muted" style="max-width: 100%; max-height: 640px;"></video>
 
 ---
 
